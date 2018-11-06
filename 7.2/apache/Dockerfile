@@ -8,11 +8,11 @@ ENV COMPOSER_ALLOW_SUPERUSER 1
 LABEL Maintainer="Carlos <caherrera@gmail.com>" \
       Description="php 7.2 container based on php:7.2-apache with pdo_mssql, xDebug enabled & composer installed." \
       org.label-schema.name="carlositline/php-mssql:7.2-apache" \
-      org.label-schema.description="php 7.2 container based on php-mssql:7.2-apache with pdo_mssql xDebug enabled & composer installed." \
+      org.label-schema.description="php 7.2 container based on php:7.2-apache with pdo_mssql xDebug enabled & composer installed." \
       org.label-schema.build-date=$BUILD_DATE \
-    #   org.label-schema.vcs-url="https://github.com/caherrera/php-7.2-mssql-xdebug-alpine.git" \
+      org.label-schema.vcs-url="https://github.com/caherrera/php-mssql.git" \
       org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.schema-version="1.0.0"
+      org.label-schema.schema-version="master"
 
 RUN set -ex \
     && cd /tmp \
@@ -58,4 +58,28 @@ ENV LC_ALL ${LC_ALL:-"es_CL.UTF-8"}
 ENV LANG ${LANG:-"es_CL.UTF-8"}
 ENV LANGUAGE ${LANGUAGE:-"es_CL.UTF-8"}
 
-# USER www-data
+# Apache conf
+ENV APP_ENV ${APP_ENV:-"local"}
+ENV APACHE_DOCUMENT_ROOT ${APACHE_DOCUMENT_ROOT:-"/var/www/html"}
+
+
+# allow .htaccess with RewriteEngine
+RUN a2enmod rewrite
+# to see live logs we do : docker logs -f [CONTAINER ID]
+# without the following line we get "AH00558: apache2: Could not reliably determine the server's fully qualified domain name"
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+# autorise .htaccess files
+RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
+# for production :
+RUN if [ "$APP_ENV" = "prod" ] ; then \
+  echo "ServerTokens Prod\n" >> /etc/apache2/apache2.conf; \ 
+  echo "ServerSignature Off\n" >> /etc/apache2/apache2.conf; \
+  sed -i -e 's/^error_reporting\s*=.*/error_reporting = E_ALL/' /etc/php/7.2/apache2/php.ini ; \
+  sed -i -e 's/^display_errors\s*=.*/display_errors = On/' /etc/php/7.2/apache2/php.ini; \
+  sed -i -e 's/^zlib.output_compression\s*=.*/zlib.output_compression = Off/' /etc/php/7.2/apache2/php.ini; \
+else \
+  echo  "Environment $APP_ENV"; \
+fi
+
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
