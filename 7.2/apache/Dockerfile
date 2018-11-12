@@ -22,7 +22,7 @@ RUN set -ex \
 ENV ACCEPT_EULA "Y" 
 
 RUN apt-get update
-RUN apt-get install -y gnupg2 apt-transport-https unzip
+RUN apt-get install -y gnupg2 apt-transport-https unzip git
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 RUN curl https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sources.list.d/mssql-release.list
 RUN apt-get update
@@ -79,6 +79,9 @@ RUN if [ "$APP_ENV" = "prod" ] ; then \
   sed -i -e 's/^zlib.output_compression\s*=.*/zlib.output_compression = Off/' /etc/php/7.2/apache2/php.ini; \
 else \
   echo  "Environment $APP_ENV"; \
+  echo  "Installing NodeJS and NPM"; \
+  curl -sL https://deb.nodesource.com/setup_10.x | bash - ; \
+  apt-get install -y nodejs ; \
 fi
 
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
